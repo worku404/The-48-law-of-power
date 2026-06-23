@@ -4,6 +4,7 @@ temp2.py
 scratch
 audio_azure.py
 audio_en.py
+audio.py
 convert_wav_to_mp3.py
 generate_en_audio.py
 # Byte-compiled / optimized / DLL files
