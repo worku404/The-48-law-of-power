@@ -29,7 +29,8 @@
                 <p>The 48 Laws of Power</p>
                 <div class="user-progress-container" id="user-progress-container"
                     data-logged-in="{% if username %}true{% else %}false{% endif %}"
-                    data-completed="{{ completed_laws | tojson | safe if completed_laws else '[]' }}">
+                    data-completed="{{ completed_laws | tojson | safe if completed_laws else '[]' }}"
+                    data-db-available="{{ 'true' if db_available else 'false' }}">
                     {% if username %}
                     <div class="user-info">
                         <span class="user-welcome">እንኳን ደህና መጡ፣ <strong id="logged-username">{{ username
@@ -43,10 +44,15 @@
                         <span class="progress-percentage-text" id="progress-percentage-text">0% completed</span>
                     </div>
                     {% else %}
-                    <div class="anon-progress-info">
-                        <button class="login-link-btn" id="open-login-btn">እድገትዎን ለማስቀመጥ ይግቡ (Login to save
-                            progress)</button>
-                    </div>
+                        {% if db_available %}
+                        <div class="anon-progress-info">
+                            <button class="login-link-btn" id="open-login-btn">እድገትዎን ለማስቀመጥ ይግቡ (Login to save progress)</button>
+                        </div>
+                        {% else %}
+                        <div class="anon-progress-info db-offline-msg">
+                            <span class="db-offline-badge">የውሂብ ጎታ መስመር ውጪ ነው (Progress offline)</span>
+                        </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

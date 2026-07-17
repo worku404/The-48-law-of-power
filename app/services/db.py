@@ -9,10 +9,53 @@ try:
 except ImportError:
     HAS_POSTGRES = False
 
+class DummyCursor:
+    def execute(self, query, params=None):
+        return self
+    def fetchone(self):
+        return None
+    def fetchall(self):
+        return []
+    def close(self):
+        pass
+
 class DatabaseService:
     def __init__(self, db_path=None, database_url=None):
         self._db_path = db_path
         self._database_url = database_url
+        self._is_available = None
+
+    def check_availability(self):
+        if self._is_available is not None:
+            return self._is_available
+        
+        try:
+            if self.is_postgres():
+                if not HAS_POSTGRES:
+                    self._is_available = False
+                    return False
+                conn = psycopg2.connect(self.database_url)
+            else:
+                db_path = self.db_path
+                if not db_path:
+                    self._is_available = False
+                    return False
+                db_dir = os.path.dirname(db_path)
+                if db_dir:
+                    os.makedirs(db_dir, exist_ok=True)
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+            
+            # Run schema initialization to verify it is fully functional
+            self._init_db(conn)
+            conn.close()
+            self._is_available = True
+        except Exception as e:
+            print(f"Database availability check failed: {e}")
+            self._is_available = False
+            
+        return self._is_available
+
 
     @property
     def database_url(self):
@@ -121,6 +164,9 @@ class DatabaseService:
         return conn.cursor()
 
     def execute(self, query, params=None):
+        if not self.check_availability():
+            return DummyCursor()
+            
         conn = self.get_connection()
         cursor = self.get_cursor(conn)
         

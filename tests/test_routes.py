@@ -146,33 +146,45 @@ def test_get_section_json_api_en(client):
     assert data['language'] == 'en'
 
 def test_get_section_audio_api_en(client):
-    from unittest.mock import MagicMock, patch
-    with patch('app.services.tts.genai.Client') as mock_client_class:
-        mock_client = MagicMock()
-        mock_client_class.return_value = mock_client
+    import os
+    import hashlib
+    
+    # English audio expects the file to be pre-generated in the English audio cache directory
+    cache_dir = client.application.config['AUDIO_CACHE_DIR_EN']
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    body_text = "Always make those above you feel comfortably superior." # Law 1 en body text
+    text_hash = hashlib.sha256(body_text.encode('utf-8')).hexdigest()
+    file_path = os.path.join(cache_dir, f"{text_hash}.mp3")
+    
+    with open(file_path, 'wb') as f:
+        f.write(b"mocked-english-audio")
         
-        class MockInlineData:
-            def __init__(self, data):
-                self.data = data
-        class MockPart:
-            def __init__(self, data):
-                self.inline_data = MockInlineData(data)
-        class MockContent:
-            def __init__(self, data):
-                self.parts = [MockPart(data)]
-        class MockCandidate:
-            def __init__(self, data):
-                self.content = MockContent(data)
-        class MockResponse:
-            def __init__(self, data):
-                self.candidates = [MockCandidate(data)]
-                
-        mock_client.models.generate_content.return_value = MockResponse(b"mocked-english-audio")
-        
-        client.application.tts_service._api_key = "mock-key"
-        
+    try:
         response = client.get('/api/sections/1/audio?lang=en')
         assert response.status_code == 200
-        assert response.content_type in ('audio/wav', 'audio/mpeg')
+        assert response.data == b"mocked-english-audio"
         response.close()
+    finally:
+        if os.path.exists(file_path):
+            os.unlink(file_path)
+
+def test_home_page_when_db_offline(client):
+    from unittest.mock import patch
+    with patch.object(client.application.db_service, 'check_availability', return_value=False):
+        response = client.get('/')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'db-offline-badge' in html or 'Progress offline' in html
+        
+        # Verify APIs return 503
+        reg_response = client.post('/api/auth/register', json={'username': 'test', 'password': 'pwd'})
+        assert reg_response.status_code == 503
+        
+        login_response = client.post('/api/auth/login', json={'username': 'test', 'password': 'pwd'})
+        assert login_response.status_code == 503
+        
+        progress_response = client.get('/api/progress')
+        assert progress_response.status_code == 503
+
 

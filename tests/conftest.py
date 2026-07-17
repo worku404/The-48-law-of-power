@@ -101,6 +101,7 @@ def app(temp_db_file, temp_cache_dir, mock_sections_file, mock_sections_en_file)
         'TESTING': True,
         'DATABASE_PATH': temp_db_file,
         'AUDIO_CACHE_DIR': temp_cache_dir,
+        'AUDIO_CACHE_DIR_EN': temp_cache_dir,
         'CONTENT_JSON_PATH': mock_sections_file,
         'CONTENT_EN_JSON_PATH': mock_sections_en_file,
         'SECRET_KEY': 'test-secret-key'

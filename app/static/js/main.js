@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let completedLaws = new Set();
     let isLoggedIn = false;
     let username = "";
+    let isDbAvailable = true;
     let currentLang = localStorage.getItem('lang') || 'am';
 
     // --- DOM Elements ---
@@ -832,15 +833,26 @@ document.addEventListener('DOMContentLoaded', () => {
             updateProgressUI();
         } else {
             container.setAttribute('data-logged-in', 'false');
-            const loginText = currentLang === 'en' 
-                ? 'Login to save progress' 
-                : 'እድገትዎን ለማስቀመጥ ይግቡ (Login to save progress)';
-            container.innerHTML = `
-                <div class="anon-progress-info">
-                    <button class="login-link-btn" id="open-login-btn">${loginText}</button>
-                </div>
-            `;
-            document.getElementById('open-login-btn').addEventListener('click', openAuthModal);
+            if (isDbAvailable) {
+                const loginText = currentLang === 'en' 
+                    ? 'Login to save progress' 
+                    : 'እድገትዎን ለማስቀመጥ ይግቡ (Login to save progress)';
+                container.innerHTML = `
+                    <div class="anon-progress-info">
+                        <button class="login-link-btn" id="open-login-btn">${loginText}</button>
+                    </div>
+                `;
+                document.getElementById('open-login-btn').addEventListener('click', openAuthModal);
+            } else {
+                const offlineText = currentLang === 'en'
+                    ? 'Progress offline'
+                    : 'የውሂብ ጎታ መስመር ውጪ ነው (Progress offline)';
+                container.innerHTML = `
+                    <div class="anon-progress-info db-offline-msg">
+                        <span class="db-offline-badge">${offlineText}</span>
+                    </div>
+                `;
+            }
         }
 
         syncSidebarCompletion();
@@ -852,6 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Progress tracking and login state from DOM attributes rendered by Flask
     const initialProgressContainer = document.getElementById('user-progress-container');
     if (initialProgressContainer) {
+        isDbAvailable = initialProgressContainer.getAttribute('data-db-available') !== 'false';
         isLoggedIn = initialProgressContainer.getAttribute('data-logged-in') === 'true';
         if (isLoggedIn) {
             const loggedUsernameEl = document.getElementById('logged-username');

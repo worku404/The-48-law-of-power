@@ -24,14 +24,20 @@ def index():
         active_section = current_app.content_service.get_section(1)
         law_id = 1
 
+    db_available = current_app.db_service.check_availability()
+
     # Fetch likes metadata for active section
-    likes_count = current_app.likes_service.get_likes(law_id)
-    has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), law_id)
+    if db_available:
+        likes_count = current_app.likes_service.get_likes(law_id)
+        has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), law_id)
+    else:
+        likes_count = 0
+        has_liked = False
 
     # Check user login and progress
-    username = session.get('username')
+    username = session.get('username') if db_available else None
     completed_laws = []
-    if username:
+    if username and db_available:
         completed_laws = current_app.user_service.get_progress(username)
 
     return render_template(
@@ -41,7 +47,8 @@ def index():
         likes_count=likes_count,
         has_liked=has_liked,
         username=username,
-        completed_laws=completed_laws
+        completed_laws=completed_laws,
+        db_available=db_available
     )
 
 @bp.route('/api/sections/<int:section_id>')
@@ -52,8 +59,13 @@ def get_section_api(section_id):
         return jsonify({'error': 'Section not found'}), 404
 
     # Fetch likes metrics
-    likes_count = current_app.likes_service.get_likes(section_id)
-    has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), section_id)
+    db_available = current_app.db_service.check_availability()
+    if db_available:
+        likes_count = current_app.likes_service.get_likes(section_id)
+        has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), section_id)
+    else:
+        likes_count = 0
+        has_liked = False
 
     # Calculate or estimate audio duration (in seconds)
     body_text = section.get('body', '').strip()
@@ -94,6 +106,9 @@ def get_section_api(section_id):
 
 @bp.route('/api/sections/<int:section_id>/like', methods=['POST'])
 def like_section_api(section_id):
+    if not current_app.db_service.check_availability():
+        return jsonify({'error': 'የውሂብ ጎታው መስመር ላይ አይደለም። (Database is offline. Liking is temporarily unavailable.)'}), 503
+
     section = current_app.content_service.get_section(section_id)
     if not section:
         return jsonify({'error': 'Section not found'}), 404
@@ -151,6 +166,8 @@ def get_section_audio_api(section_id):
 
 @bp.route('/api/auth/register', methods=['POST'])
 def register():
+    if not current_app.db_service.check_availability():
+        return jsonify({'error': 'የውሂብ ጎታው መስመር ላይ አይደለም። (Database is offline. Registration is temporarily unavailable.)'}), 503
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '')
@@ -170,6 +187,8 @@ def register():
 
 @bp.route('/api/auth/login', methods=['POST'])
 def login():
+    if not current_app.db_service.check_availability():
+        return jsonify({'error': 'የውሂብ ጎታው መስመር ላይ አይደለም። (Database is offline. Login is temporarily unavailable.)'}), 503
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '')
@@ -195,6 +214,8 @@ def logout():
 
 @bp.route('/api/progress')
 def get_progress():
+    if not current_app.db_service.check_availability():
+        return jsonify({'error': 'Database offline'}), 503
     username = session.get('username')
     if not username:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -203,6 +224,8 @@ def get_progress():
 
 @bp.route('/api/progress/complete', methods=['POST'])
 def complete_law():
+    if not current_app.db_service.check_availability():
+        return jsonify({'error': 'Database offline'}), 503
     username = session.get('username')
     if not username:
         return jsonify({'error': 'Unauthorized'}), 401
