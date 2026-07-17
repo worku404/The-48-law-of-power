@@ -11,7 +11,7 @@ generate_en_audio.py
 __pycache__/
 *.py[codz]
 *$py.class
-
+*.bak*
 # C extensions
 *.so
 
