@@ -1,98 +1,98 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
+# # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# # More GitHub Actions for Azure: https://github.com/Azure/actions
+# # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python app to Azure Web App - the-48-low-of-power
+# name: Build and deploy Python app to Azure Web App - the-48-low-of-power
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-  # ⏰ Automatically checks and syncs Azure's outbound IPs every 2 hours
-  schedule:
-    - cron: '0 */2 * * *'
+# on:
+#   push:
+#     branches:
+#       - main
+#   workflow_dispatch:
+#   # ⏰ Automatically checks and syncs Azure's outbound IPs every 2 hours
+#   schedule:
+#     - cron: '0 */2 * * *'
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    # ⚡ Only run the heavy compilation build if a human pushes code or triggers it manually
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: read
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     # ⚡ Only run the heavy compilation build if a human pushes code or triggers it manually
+#     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+#     permissions:
+#       contents: read
 
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - name: Set up Python version
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+#       - name: Set up Python version
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.13'
 
-      - name: Create and Start virtual environment and Install dependencies
-        run: |
-          python -m venv antenv
-          source antenv/bin/activate
-          pip install -r requirements.txt
+#       - name: Create and Start virtual environment and Install dependencies
+#         run: |
+#           python -m venv antenv
+#           source antenv/bin/activate
+#           pip install -r requirements.txt
                 
-      - name: Upload artifact for deployment jobs
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-app
-          path: |
-            .
-            !antenv/
+#       - name: Upload artifact for deployment jobs
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: python-app
+#           path: |
+#             .
+#             !antenv/
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    # ⚙️ Run if the build was successful OR if it's running on the background 2-hour timer
-    if: always() && (needs.build.result == 'success' || github.event_name == 'schedule')
-    permissions:
-      id-token: write
-      contents: read
+#   deploy:
+#     runs-on: ubuntu-latest
+#     needs: build
+#     # ⚙️ Run if the build was successful OR if it's running on the background 2-hour timer
+#     if: always() && (needs.build.result == 'success' || github.event_name == 'schedule')
+#     permissions:
+#       id-token: write
+#       contents: read
 
-    steps:
-      # 📦 Only download files if we are pushing code changes
-      - name: Download artifact from build job
-        if: github.event_name != 'schedule'
-        uses: actions/download-artifact@v4
-        with:
-          name: python-app
+#     steps:
+#       # 📦 Only download files if we are pushing code changes
+#       - name: Download artifact from build job
+#         if: github.event_name != 'schedule'
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: python-app
       
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F55E9D09D1914845A1B702E20B36C886 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_EBE32C2664864831A852418E25916AAE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C3B2600BCC8D4378B3D1920FFFA2B074 }}
+#       - name: Login to Azure
+#         uses: azure/login@v2
+#         with:
+#           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F55E9D09D1914845A1B702E20B36C886 }}
+#           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_EBE32C2664864831A852418E25916AAE }}
+#           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C3B2600BCC8D4378B3D1920FFFA2B074 }}
 
-      # 🚀 Only deploy code if we are pushing code changes
-      - name: 'Deploy to Azure Web App'
-        if: github.event_name != 'schedule'
-        uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
-        with:
-          app-name: 'the-48-low-of-power'
-          slot-name: 'Production'
+#       # 🚀 Only deploy code if we are pushing code changes
+#       - name: 'Deploy to Azure Web App'
+#         if: github.event_name != 'schedule'
+#         uses: azure/webapps-deploy@v3
+#         id: deploy-to-webapp
+#         with:
+#           app-name: 'the-48-low-of-power'
+#           slot-name: 'Production'
 
-      # 🔥 ALWAYS RUNS: This fires during code deployments AND on the 2-hour background clock
-      - name: 'Sync App Service IPs to Postgres NSG'
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            echo "Fetching all potential outbound IPs for the-48-low-of-power..."
+#       # 🔥 ALWAYS RUNS: This fires during code deployments AND on the 2-hour background clock
+#       - name: 'Sync App Service IPs to Postgres NSG'
+#         uses: azure/CLI@v2
+#         with:
+#           inlineScript: |
+#             echo "Fetching all potential outbound IPs for the-48-low-of-power..."
             
-            # 1. Fetch IPs and replace commas with spaces using 'tr'
-            IP_LIST=$(az webapp show --name the-48-low-of-power --resource-group the-48-low-of-power_group --query "possibleOutboundIpAddresses" -o tsv | tr ',' ' ')
+#             # 1. Fetch IPs and replace commas with spaces using 'tr'
+#             IP_LIST=$(az webapp show --name the-48-low-of-power --resource-group the-48-low-of-power_group --query "possibleOutboundIpAddresses" -o tsv | tr ',' ' ')
             
-            echo "Updating NSG rule 'AllowPostgres5432' with fresh space-separated IPs..."
+#             echo "Updating NSG rule 'AllowPostgres5432' with fresh space-separated IPs..."
             
-            # 2. Update your NSG rule with the clean space-separated list
-            az network nsg rule update \
-              --resource-group gold-e-learning_group \
-              --nsg-name gold-e-learning-nsg \
-              --name AllowPostgres5432 \
-              --source-address-prefixes $IP_LIST
+#             # 2. Update your NSG rule with the clean space-separated list
+#             az network nsg rule update \
+#               --resource-group gold-e-learning_group \
+#               --nsg-name gold-e-learning-nsg \
+#               --name AllowPostgres5432 \
+#               --source-address-prefixes $IP_LIST
               
-            echo "Firewall sync complete!"
+#             echo "Firewall sync complete!"
