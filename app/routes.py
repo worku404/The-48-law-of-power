@@ -127,11 +127,11 @@ def like_section_api(section_id):
             'auth_required': True
         }), 401
 
-    likes_count, success = current_app.likes_service.add_like(username, section_id)
+    likes_count, is_liked = current_app.likes_service.toggle_like(username, section_id)
     
     return jsonify({
         'likes': likes_count,
-        'liked': True
+        'liked': is_liked
     })
 
 @bp.route('/api/sections/<int:section_id>/audio')

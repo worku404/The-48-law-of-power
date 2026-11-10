@@ -76,11 +76,19 @@ def test_like_section_api(client):
     assert get_data['likes'] == 1
     assert get_data['liked'] is True
 
-    # Subsequent like from the same user should not increment count
-    dup_response = client.post('/api/sections/1/like')
-    assert dup_response.status_code == 200
-    dup_data = json.loads(dup_response.data)
-    assert dup_data['likes'] == 1
+    # Subsequent like from the same user toggles (undoes) the like
+    toggle_off_response = client.post('/api/sections/1/like')
+    assert toggle_off_response.status_code == 200
+    toggle_off_data = json.loads(toggle_off_response.data)
+    assert toggle_off_data['likes'] == 0
+    assert toggle_off_data['liked'] is False
+
+    # Like it once more to verify re-liking works
+    toggle_on_response = client.post('/api/sections/1/like')
+    assert toggle_on_response.status_code == 200
+    toggle_on_data = json.loads(toggle_on_response.data)
+    assert toggle_on_data['likes'] == 1
+    assert toggle_on_data['liked'] is True
 
     # Unauthenticated visitor reading the section sees total likes but liked=False
     client.post('/api/auth/logout')

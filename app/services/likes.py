@@ -71,3 +71,50 @@ class LikesService:
         except Exception:
             self.db_service.rollback()
             return self.get_likes(section_id), False
+
+    def remove_like(self, username, section_id):
+        if not username:
+            return self.get_likes(section_id), False
+
+        username = username.strip()
+        try:
+            cursor_del = self.db_service.execute("""
+                DELETE FROM user_likes WHERE username = ? AND section_id = ?
+            """, (username, section_id))
+            deleted = cursor_del.rowcount > 0
+            cursor_del.close()
+
+            if not deleted:
+                self.db_service.rollback()
+                return self.get_likes(section_id), False
+
+            cursor_like = self.db_service.execute("""
+                UPDATE section_likes
+                SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END
+                WHERE section_id = ?
+            """, (section_id,))
+            cursor_like.close()
+
+            self.db_service.commit()
+            return self.get_likes(section_id), True
+        except Exception:
+            self.db_service.rollback()
+            return self.get_likes(section_id), False
+
+    def toggle_like(self, username, section_id):
+        """
+        Toggles like for a user on a given section.
+        If user has already liked, it removes the like (unlike/undo).
+        If user has not liked, it adds the like.
+        Returns tuple: (current_like_count, is_liked)
+        """
+        if not username:
+            return self.get_likes(section_id), False
+
+        username = username.strip()
+        if self.has_liked(username, section_id):
+            likes_count, _ = self.remove_like(username, section_id)
+            return likes_count, False
+        else:
+            likes_count, _ = self.add_like(username, section_id)
+            return likes_count, True

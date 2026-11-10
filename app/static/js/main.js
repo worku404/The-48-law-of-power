@@ -340,18 +340,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Likes Action API ---
+    // --- Likes Action API (Toggle Like / Unlike) ---
     likeBtn.addEventListener('click', async () => {
         if (!isLoggedIn) {
             showToast(currentLang === 'en' 
                 ? 'Please log in to like this law' 
                 : 'ሕጉን ለመውደድ እባክዎ ይግቡ (Please log in to like this law)');
             openAuthModal();
-            return;
-        }
-
-        if (likeBtn.classList.contains('liked')) {
-            showToast(currentLang === 'en' ? 'You already liked this law' : 'ይህንን ሕግ ቀድመው ወድደውታል (You already liked this law)');
             return;
         }
 
@@ -372,18 +367,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (!response.ok) {
-                throw new Error('Failed to post like');
+                throw new Error('Failed to toggle like');
             }
             const data = await response.json();
             
-            // Update likes counter
+            // Update likes counter and heart status based on server response
             likesCountEl.textContent = data.likes;
-            likeBtn.classList.add('liked');
-            likeBtn.setAttribute('title', currentLang === 'en' ? 'You have liked this law' : 'ይህንን ሕግ ወድደውታል (You have liked this law)');
-            showToast(currentLang === 'en' ? 'You liked this law!' : 'ሕጉን ወድደውታል! (You liked this law!)');
+            if (data.liked) {
+                likeBtn.classList.add('liked');
+                likeBtn.setAttribute('title', currentLang === 'en' ? 'You have liked this law' : 'ይህንን ሕግ ወድደውታል (You have liked this law)');
+                showToast(currentLang === 'en' ? 'You liked this law!' : 'ሕጉን ወድደውታል! (You liked this law!)');
+            } else {
+                likeBtn.classList.remove('liked');
+                likeBtn.setAttribute('title', currentLang === 'en' ? 'Like this law' : 'ሕጉን ውደዱ (Like this law)');
+                showToast(currentLang === 'en' ? 'Like removed' : 'ምርጫዎን ሰርዘዋል (Like removed)');
+            }
         } catch (error) {
-            console.error('Error liking section:', error);
-            showToast(currentLang === 'en' ? 'Failed to submit like' : 'ምርጫ ማዘመን አልተቻለም (Failed to submit like)');
+            console.error('Error toggling like:', error);
+            showToast(currentLang === 'en' ? 'Failed to update like' : 'ምርጫ ማዘመን አልተቻለም (Failed to update like)');
         }
     });
 
