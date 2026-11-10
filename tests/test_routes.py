@@ -194,10 +194,20 @@ def test_get_section_audio_api_en(client):
         response = client.get('/api/sections/1/audio?lang=en')
         assert response.status_code == 200
         assert response.data == b"mocked-english-audio"
+        assert response.headers.get('Accept-Ranges') == 'bytes'
+        assert 'max-age=31536000' in response.headers.get('Cache-Control', '')
         response.close()
     finally:
         if os.path.exists(file_path):
             os.unlink(file_path)
+
+def test_permanent_session_on_auth(client):
+    reg = client.post('/api/auth/register', json={'username': 'longtermuser', 'password': 'mypassword'})
+    assert reg.status_code == 200
+    cookies = reg.headers.getlist('Set-Cookie')
+    session_cookie = next((c for c in cookies if c.startswith('session=')), None)
+    assert session_cookie is not None
+    assert 'Expires=' in session_cookie or 'Max-Age=' in session_cookie
 
 def test_home_page_when_db_offline(client):
     from unittest.mock import patch

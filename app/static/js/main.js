@@ -626,16 +626,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const audioSrc = `/api/sections/${currentLawId}/audio?lang=${currentLang}`;
-            audioPlayer.src = audioSrc;
+            if (!audioPlayer.src.endsWith(audioSrc)) {
+                audioPlayer.src = audioSrc;
+            }
 
-            // Preload and verify availability
-            await new Promise((resolve, reject) => {
-                audioPlayer.oncanplaythrough = resolve;
-                audioPlayer.onerror = () => {
-                    reject(new Error('Audio load failed.'));
-                };
-                audioPlayer.load();
-            });
+            // Immediately stream and play via native HTTP Range requests
+            await audioPlayer.play();
 
             isLoadingAudio = false;
             isPlaying = true;
@@ -644,12 +640,10 @@ document.addEventListener('DOMContentLoaded', () => {
             audioBtnText.textContent = strings().pause;
             audioIconContainer.innerHTML = ICONS.pause;
 
-            await audioPlayer.play();
-
         } catch (error) {
             console.error('Error starting audio playback:', error);
             stopAudio();
-            showToast(currentLang === 'en' ? 'Audio generation failed' : 'የንባብ ድምጽ ማመንጨት አልተቻለም (Audio generation failed)');
+            showToast(currentLang === 'en' ? 'Audio for this law is not available yet' : 'የዚህ ሕግ ድምጽ ገና አልተዘጋጀም (Audio not available yet)');
         }
     }
 

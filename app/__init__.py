@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import timedelta
 from flask import Flask, request, g
 from app.services.content import ContentService
 from app.services.likes import LikesService
@@ -31,6 +32,7 @@ def create_app(test_config=None):
         CONTENT_EN_JSON_PATH=os.path.join(app.root_path, '..', 'data', 'sections_en.json'),
         SECRET_KEY=secret_key or 'dev-key-placeholder-for-session-fallback',
         DATABASE_URL=database_url,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_SECURE=session_cookie_secure

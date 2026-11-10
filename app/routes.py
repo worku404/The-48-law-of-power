@@ -161,7 +161,16 @@ def get_section_audio_api(section_id):
     audio_path = current_app.tts_service.get_audio_path(body_text, lang=lang)
     if audio_path and os.path.exists(audio_path):
         mimetype = 'audio/mpeg' if audio_path.endswith('.mp3') else 'audio/wav'
-        return send_file(audio_path, mimetype=mimetype, as_attachment=False)
+        response = send_file(
+            audio_path,
+            mimetype=mimetype,
+            as_attachment=False,
+            max_age=31536000,
+            conditional=True
+        )
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        response.headers['Accept-Ranges'] = 'bytes'
+        return response
 
     error_msg = (
         'English audio for this law has not been generated yet.'
@@ -191,6 +200,7 @@ def register():
 
     success = current_app.user_service.create_user(username, password)
     if success:
+        session.permanent = True
         session['username'] = username
         return jsonify({'message': 'Registration successful.', 'username': username}), 200
     else:
@@ -211,6 +221,7 @@ def login():
         return jsonify({'error': 'ይህ ተጠቃሚ አልተመዘገበም። እባክዎ አዲስ አካውንት ይፍጠሩ። (Username does not exist. Please register.)'}), 404
 
     if current_app.user_service.verify_user(username, password):
+        session.permanent = True
         session['username'] = username
         return jsonify({'message': 'Login successful.', 'username': username}), 200
     else:
