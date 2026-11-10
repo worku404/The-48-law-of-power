@@ -19,8 +19,8 @@ def create_app(test_config=None):
     is_vercel = bool(os.environ.get('VERCEL'))
     default_db_dir = '/tmp' if is_vercel else app.instance_path
     default_db_path = os.path.join(default_db_dir, 'likes.sqlite3')
-    default_cache_dir = '/tmp/audio_cache' if is_vercel else os.path.join(app.instance_path, 'audio_cache')
-    default_cache_dir_en = '/tmp/audio_cache_en' if is_vercel else os.path.join(app.instance_path, 'audio_cache_en')
+    default_cache_dir = os.path.join(app.instance_path, 'audio_cache')
+    default_cache_dir_en = os.path.join(app.instance_path, 'audio_cache_en')
     
     # Configure default settings
     app.config.from_mapping(

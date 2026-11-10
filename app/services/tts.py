@@ -75,16 +75,27 @@ class TTSService:
         text_utf8 = text.strip().encode('utf-8')
         text_hash = hashlib.sha256(text_utf8).hexdigest()
         
-        # Ensure cache directory exists
-        os.makedirs(self.cache_dir, exist_ok=True)
+        # 1. Check primary cache (pre-generated files in instance/audio_cache)
         cache_file_path = os.path.join(self.cache_dir, f"{text_hash}.mp3")
-
-        # Cache Hit
         if os.path.exists(cache_file_path):
             return cache_file_path
 
+        # 2. On Vercel, also check /tmp/audio_cache for files generated during this serverless instance
+        tmp_dir = '/tmp/audio_cache'
+        tmp_file_path = os.path.join(tmp_dir, f"{text_hash}.mp3")
+        if os.environ.get('VERCEL') and os.path.exists(tmp_file_path):
+            return tmp_file_path
+
         # Cache Miss - Generate using Gemini API
         client = self._get_client()
+
+        # Destination path for newly generated file
+        write_dir = tmp_dir if os.environ.get('VERCEL') else self.cache_dir
+        try:
+            os.makedirs(write_dir, exist_ok=True)
+        except OSError:
+            pass
+        cache_file_path = os.path.join(write_dir, f"{text_hash}.mp3")
         
         # Determine voice and prompt based on language
         if lang == 'en':
