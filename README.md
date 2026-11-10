@@ -47,10 +47,10 @@ An editorial-style Single-Page Web Application presenting **48ቱ የሥልጣ�
 ### Environment Variables
 
 For local development, copy `.env.example` to `.env` and set the values there.
-The application reads the verified `NOEON_DB` environment variable for
+The application reads the verified `NEON_DB` environment variable for
 PostgreSQL/Neon. The URL must include `sslmode=require`.
 
-`NOEON_DB` connects the existing tables automatically on the first request:
+`NEON_DB` connects the existing tables automatically on the first request:
 
 - `users`: usernames and Werkzeug-hashed passwords
 - `user_progress`: completed-law history per user

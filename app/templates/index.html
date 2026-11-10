@@ -3,30 +3,60 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title id="page-title">{{ active_section.label }}{% if active_section.title %} - {{ active_section.title }}{% else
         %} - በቅርብ ቀን (Coming soon){% endif %} | 48ቱ የሥልጣን ሕጎች</title>
     <meta name="description"
         content="48ቱ የሥልጣን ሕጎች (The 48 Laws of Power) Amharic translation and audio reader interface. Explore and listen to the laws in Amharic.">
+    <meta name="theme-color" content="#F1F2F4" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#13151C" media="(prefers-color-scheme: dark)">
 
-    <!-- Google Fonts for Editorial Typography and Ethiopic Characters -->
+    <!-- Apply saved theme before first paint (prevents a light/dark flash) -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', t);
+                var l = localStorage.getItem('lang');
+                if (l) document.documentElement.setAttribute('lang', l);
+            } catch (e) { }
+        })();
+    </script>
+
+    <!-- Fonts: Cinzel (inscription titles), Abyssinica SIL (Ge'ez display),
+         Literata + Noto Serif Ethiopic (reading), Instrument Sans + Noto Sans Ethiopic (interface) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Noto+Serif+Ethiopic:wght@300;400;500;700&family=Outfit:wght@300;400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Cinzel:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=Noto+Sans+Ethiopic:wght@400;500;600&family=Noto+Serif+Ethiopic:wght@400;500;600&display=swap"
         rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.0.3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.1.0') }}">
 </head>
 
 <body>
+    <a class="skip-link" href="#reader-viewport">Skip to reading</a>
+
     <!-- App Shell Container -->
     <div class="app-container">
         <!-- Sidebar Navigation Drawer -->
         <aside class="sidebar" id="sidebar" aria-label="Laws navigation">
             <div class="sidebar-header">
-                <h2>48ቱ የሥልጣን ሕጎች</h2>
-                <p>The 48 Laws of Power</p>
+                <div class="sidebar-brand-row">
+                    <div class="sidebar-brand">
+                        <h2>48ቱ የሥልጣን ሕጎች</h2>
+                        <p>The 48 Laws of Power</p>
+                    </div>
+                    <button type="button" class="icon-btn sidebar-close" id="sidebar-close" aria-label="Close menu">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
                 <div class="user-progress-container" id="user-progress-container"
                     data-logged-in="{% if username %}true{% else %}false{% endif %}"
                     data-completed="{{ completed_laws | tojson | safe if completed_laws else '[]' }}"
@@ -35,7 +65,7 @@
                     <div class="user-info">
                         <span class="user-welcome">እንኳን ደህና መጡ፣ <strong id="logged-username">{{ username
                                 }}</strong></span>
-                        <button class="logout-link-btn" id="logout-btn">ውጣ (Logout)</button>
+                        <button type="button" class="logout-link-btn" id="logout-btn">ውጣ (Logout)</button>
                     </div>
                     <div class="progress-bar-wrapper">
                         <div class="progress-bar-tube">
@@ -46,7 +76,7 @@
                     {% else %}
                         {% if db_available %}
                         <div class="anon-progress-info">
-                            <button class="login-link-btn" id="open-login-btn">እድገትዎን ለማስቀመጥ ይግቡ (Login to save progress)</button>
+                            <button type="button" class="login-link-btn" id="open-login-btn">እድገትዎን ለማስቀመጥ ይግቡ (Login to save progress)</button>
                         </div>
                         {% else %}
                         <div class="anon-progress-info db-offline-msg">
@@ -56,182 +86,115 @@
                     {% endif %}
                 </div>
             </div>
-            <nav class="sidebar-nav">
-                <ul>
+
+            <nav class="sidebar-nav" aria-label="Laws">
+                <ol class="law-list">
                     {% for sec in sections %}
                     <li>
                         <a href="/?law={{ sec.id }}"
-                            class="sidebar-link {% if sec.id == active_section.id %}active{% endif %}"
-                            data-id="{{ sec.id }}" id="sidebar-law-{{ sec.id }}">
-                            <span class="law-number">Law {{ sec.id }}</span>
+                            class="sidebar-link {% if sec.id == active_section.id %}active{% endif %} {% if not sec.title %}is-soon{% endif %}"
+                            data-id="{{ sec.id }}" id="sidebar-law-{{ sec.id }}"
+                            {% if sec.id == active_section.id %}aria-current="page"{% endif %}>
+                            <span class="law-number">{{ sec.id }}</span>
                             {% if sec.title %}
+                            <span class="law-name">{{ sec.title }}</span>
                             <span class="law-dot filled" title="Content available"></span>
                             {% else %}
+                            <span class="law-name" data-soon="true">በቅርብ ቀን</span>
                             <span class="law-dot empty" title="Coming soon"></span>
                             {% endif %}
                         </a>
                     </li>
                     {% endfor %}
-                </ul>
+                </ol>
             </nav>
+
+            <footer class="sidebar-footer">
+                <span class="sidebar-credit">@worku404</span>
+                <div class="sidebar-social">
+                    <a href="https://github.com/worku404" target="_blank" rel="noopener noreferrer" class="icon-btn"
+                        aria-label="GitHub (@worku404)" title="GitHub">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path
+                                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+                            </path>
+                        </svg>
+                    </a>
+                    <a href="https://t.me/worku404" target="_blank" rel="noopener noreferrer" class="icon-btn"
+                        aria-label="Telegram (@worku404)" title="Telegram">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </a>
+                </div>
+            </footer>
         </aside>
 
         <!-- Main Workspace Area -->
         <div class="main-content">
-            <!-- Top Quiet Controls bar -->
+            <!-- Top bar -->
             <header class="top-bar">
                 <div class="left-bar-controls">
-                    <button class="icon-btn" id="sidebar-toggle" aria-label="Toggle Sidebar" title="Toggle Sidebar">
+                    <button type="button" class="icon-btn" id="sidebar-toggle" aria-label="Toggle Sidebar"
+                        title="Toggle Sidebar">
                         <!-- Close chevron (<<): visible when sidebar is open -->
                         <svg class="sidebar-chevron-close" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="11 17 6 12 11 7"></polyline>
                             <polyline points="18 17 13 12 18 7"></polyline>
                         </svg>
-                        <!-- Open chevron (>>): visible when sidebar is collapsed/hidden -->
+                        <!-- Open icon: visible when sidebar is collapsed/hidden -->
                         <svg class="sidebar-chevron-open" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="13 17 18 12 13 7"></polyline>
-                            <polyline points="6 17 11 12 6 7"></polyline>
+                            stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="4" y1="7" x2="20" y2="7"></line>
+                            <line x1="4" y1="12" x2="16" y2="12"></line>
+                            <line x1="4" y1="17" x2="12" y2="17"></line>
                         </svg>
                     </button>
                     <span class="logo-text">48ቱ የሥልጣን ሕጎች</span>
                 </div>
+
                 <div class="right-bar-controls">
-                    <div class="header-controls-desktop">
-                        <!-- GitHub Icon and Tooltip -->
-                        <div class="social-icon-wrapper">
-                            <a href="https://github.com/worku404" target="_blank" rel="noopener noreferrer"
-                                class="icon-btn" aria-label="GitHub">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path
-                                        d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
-                                    </path>
-                                </svg>
-                            </a>
-                            <div class="social-tooltip">
-                                <div class="tooltip-title">GitHub</div>
-                                <div class="tooltip-sub">@worku404</div>
-                            </div>
-                        </div>
+                    <!-- Language switch: both languages visible, current one highlighted -->
+                    <button type="button" class="lang-header-btn" id="lang-btn" aria-label="Switch Language">
+                        <span class="lang-opt" data-lang="am" aria-hidden="true">አማ</span>
+                        <span class="lang-opt" data-lang="en" aria-hidden="true">EN</span>
+                        <span class="visually-hidden" id="lang-btn-text">EN</span>
+                    </button>
 
-                        <!-- Telegram Icon and Tooltip -->
-                        <div class="social-icon-wrapper">
-                            <a href="https://t.me/worku404" target="_blank" rel="noopener noreferrer" class="icon-btn"
-                                aria-label="Telegram">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
-                            </a>
-                            <div class="social-tooltip">
-                                <div class="tooltip-title">Telegram</div>
-                                <div class="tooltip-sub">@worku404</div>
-                            </div>
-                        </div>
-
-                        <!-- Language Toggle Button -->
-                        <div class="social-icon-wrapper">
-                            <button class="icon-btn lang-header-btn" id="lang-btn" aria-label="Switch Language">
-                                <span id="lang-btn-text">EN</span>
-                            </button>
-                            <div class="social-tooltip">
-                                <div class="tooltip-title">Language / ቋንቋ</div>
-                                <div class="tooltip-sub">አማርኛ &bull; English</div>
-                            </div>
-                        </div>
-
-                        <button class="icon-btn" id="theme-toggle" aria-label="Toggle Reading Mode"
-                            title="Toggle Light/Dark Theme">
-                            <!-- Moon SVG -->
-                            <svg class="moon-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                            </svg>
-                            <!-- Sun SVG -->
-                            <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                style="display:none;">
-                                <circle cx="12" cy="12" r="5"></circle>
-                                <line x1="12" y1="1" x2="12" y2="3"></line>
-                                <line x1="12" y1="21" x2="12" y2="23"></line>
-                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                <line x1="1" y1="12" x2="3" y2="12"></line>
-                                <line x1="21" y1="12" x2="23" y2="12"></line>
-                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="header-controls-mobile">
-                        <button class="icon-btn" id="header-menu-btn" aria-label="More options" aria-haspopup="menu"
-                            aria-expanded="false" aria-controls="header-dropdown">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="5" r="1"></circle>
-                                <circle cx="12" cy="12" r="1"></circle>
-                                <circle cx="12" cy="19" r="1"></circle>
-                            </svg>
-                        </button>
-                        <div id="header-dropdown" class="header-dropdown" role="menu" hidden>
-                            <button type="button" class="header-dropdown-item" id="mobile-theme-toggle" role="menuitem">
-                                <svg class="mobile-moon-icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                </svg>
-                                <svg class="mobile-sun-icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round" aria-hidden="true" style="display:none;">
-                                    <circle cx="12" cy="12" r="5"></circle>
-                                    <line x1="12" y1="1" x2="12" y2="3"></line>
-                                    <line x1="12" y1="21" x2="12" y2="23"></line>
-                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                    <line x1="1" y1="12" x2="3" y2="12"></line>
-                                    <line x1="21" y1="12" x2="23" y2="12"></line>
-                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                                </svg>
-                                <span id="mobile-theme-label">Dark mode</span>
-                            </button>
-                            <button type="button" class="header-dropdown-item" id="mobile-lang-btn" role="menuitem">
-                                <span class="mobile-lang-pill" id="mobile-lang-btn-text">EN</span>
-                                <span id="mobile-lang-label">Language</span>
-                            </button>
-                            <a href="https://github.com/worku404" target="_blank" rel="noopener noreferrer"
-                                class="header-dropdown-item" role="menuitem">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path
-                                        d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
-                                    </path>
-                                </svg>
-                                <span>GitHub</span>
-                            </a>
-                            <a href="https://t.me/worku404" target="_blank" rel="noopener noreferrer"
-                                class="header-dropdown-item" role="menuitem">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
-                                <span>Telegram</span>
-                            </a>
-                        </div>
-                    </div>
+                    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Toggle Reading Mode"
+                        title="Toggle Light/Dark Theme">
+                        <svg class="moon-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            style="display:none;">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
                 </div>
             </header>
 
+            <!-- Reading position indicator -->
+            <div class="read-progress" aria-hidden="true"><span class="read-progress-fill" id="read-progress-fill"></span></div>
+
             <!-- Book Reader Viewport -->
-            <article class="reader-viewport" id="reader-viewport">
+            <article class="reader-viewport" id="reader-viewport" tabindex="-1" data-law-id="{{ active_section.id }}">
                 <div class="reader-container">
-                    <!-- Heading -->
-                    <div class="reader-header">
+                    <header class="reader-header">
                         <span class="law-badge" id="view-law-label">{{ active_section.label }}</span>
                         <h1 class="law-title" id="view-law-title">
                             {% if active_section.title %}
@@ -240,17 +203,30 @@
                             በቅርብ ቀን (Coming soon)
                             {% endif %}
                         </h1>
-                    </div>
+                    </header>
 
-                    <!-- Quiet Inline Reading Controls -->
-                    <div class="reader-controls">
-                        <!-- Like Action Button -->
-                        <button class="control-btn {% if has_liked %}liked{% endif %}" id="like-btn"
+                    <!-- Reading actions (becomes a bottom dock on phones) -->
+                    <div class="reader-controls" role="toolbar" aria-label="Reading actions">
+                        <!-- Listen: primary action -->
+                        <button type="button" class="control-btn control-btn--primary" id="audio-btn" {% if not active_section.body %}disabled{% endif %}
+                            aria-label="Listen aloud"
+                            title="{% if active_section.body %}Listen to this law aloud in Amharic{% else %}Audio reader unavailable for coming soon sections{% endif %}">
+                            <span class="btn-icon" id="audio-icon-container">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                </svg>
+                            </span>
+                            <span class="btn-text" id="audio-btn-text">አድምጥ</span>
+                        </button>
+
+                        <!-- Like -->
+                        <button type="button" class="control-btn control-btn--like {% if has_liked %}liked{% endif %}" id="like-btn"
                             aria-label="Like Law" title="Like this law">
                             <span class="btn-icon">
-                                <!-- Heart SVG -->
                                 <svg class="heart-svg" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                                    stroke="currentColor" stroke-width="2">
+                                    stroke="currentColor" stroke-width="2" stroke-linejoin="round">
                                     <path
                                         d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
                                     </path>
@@ -259,36 +235,24 @@
                             <span class="btn-text" id="likes-count">{{ likes_count }}</span>
                         </button>
 
-                        <!-- Gemini TTS Audio Button -->
-                        <button class="control-btn" id="audio-btn" {% if not active_section.body %}disabled{% endif %}
-                            aria-label="Listen aloud"
-                            title="{% if active_section.body %}Listen to this law aloud in Amharic{% else %}Audio reader unavailable for coming soon sections{% endif %}">
-                            <span class="btn-icon" id="audio-icon-container">
-                                <!-- Speaker Play SVG -->
-                                <svg class="speaker-play-svg" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                                    stroke="currentColor" stroke-width="2">
-                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                </svg>
-                            </span>
-                            <span class="btn-text" id="audio-btn-text">አድምጥ (Listen)</span>
-                        </button>
-
-                        <!-- Share Action Button -->
-                        <button class="control-btn" id="share-btn" aria-label="Share Law" title="Copy shareable link">
+                        <!-- Share -->
+                        <button type="button" class="control-btn control-btn--share" id="share-btn" aria-label="Share Law"
+                            title="Copy shareable link">
                             <span class="btn-icon">
-                                <!-- Link/Share SVG -->
                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                                    stroke-width="2">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="18" cy="5" r="3"></circle>
+                                    <circle cx="6" cy="12" r="3"></circle>
+                                    <circle cx="18" cy="19" r="3"></circle>
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                                 </svg>
                             </span>
-                            <span class="btn-text" id="share-btn-text">አጋራ (Share)</span>
+                            <span class="btn-text" id="share-btn-text">አጋራ</span>
                         </button>
                     </div>
 
-                    <!-- Editorial Content Body -->
+                    <!-- Content body -->
                     <div class="reader-body {% if not active_section.body %}coming-soon{% endif %}" id="view-law-body">
                         {% if active_section.body %}
                         {% for paragraph in active_section.body.split('\n\n') %}
@@ -298,6 +262,21 @@
                         ይህ ክፍል ገና አልተተረጎመም። በቅርቡ ይደርሳል! (This law has not been translated yet. Coming soon!)
                         {% endif %}
                     </div>
+
+                    <!-- End of law: status + previous / next -->
+                    <nav class="law-pager" id="law-pager" aria-label="Law navigation">
+                        <p class="pager-status" id="pager-status" hidden></p>
+                        <div class="pager-row">
+                            <button type="button" class="pager-btn pager-prev" id="prev-law-btn">
+                                <span class="pager-hint" id="prev-law-hint">ቀዳሚ</span>
+                                <span class="pager-target" id="prev-law-target"></span>
+                            </button>
+                            <button type="button" class="pager-btn pager-next" id="next-law-btn">
+                                <span class="pager-hint" id="next-law-hint">ቀጣይ</span>
+                                <span class="pager-target" id="next-law-target"></span>
+                            </button>
+                        </div>
+                    </nav>
                 </div>
             </article>
         </div>
@@ -306,18 +285,29 @@
     <!-- Hidden audio element for TTS playback -->
     <audio id="tts-audio-player" style="display: none;"></audio>
 
-    <!-- Visual non-intrusive toast notifications -->
+    <!-- Toast notifications -->
     <div id="toast-notification" class="toast" role="alert" aria-live="polite"></div>
 
     <!-- Login / Registration Modal -->
     <div class="modal-overlay" id="auth-modal" style="display: none;">
-        <div class="modal-card">
-            <button class="modal-close-btn" id="close-modal-btn" aria-label="Close modal">&times;</button>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+            <button type="button" class="modal-close-btn" id="close-modal-btn" aria-label="Close modal">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="modal-intro">
+                <h2 class="modal-title" id="auth-modal-title">እድገትዎን ለማስቀመጥ ይግቡ</h2>
+                <p class="modal-lede">Sign in to keep your reading progress and likes on every device.</p>
+            </div>
 
             <!-- Tab headers -->
-            <div class="modal-tabs">
-                <button class="tab-btn active" id="tab-login-btn">ይግቡ (Login)</button>
-                <button class="tab-btn" id="tab-register-btn">ይመዝገቡ (Register)</button>
+            <div class="modal-tabs" role="tablist">
+                <button type="button" class="tab-btn active" id="tab-login-btn" role="tab">ይግቡ (Login)</button>
+                <button type="button" class="tab-btn" id="tab-register-btn" role="tab">ይመዝገቡ (Register)</button>
             </div>
 
             <!-- Login Form -->
@@ -332,7 +322,7 @@
                     <input type="password" id="login-password" name="password" required autocomplete="current-password"
                         placeholder="Enter password">
                 </div>
-                <div class="auth-error-msg" id="login-error-msg" style="display: none;"></div>
+                <div class="auth-error-msg" id="login-error-msg" role="alert" style="display: none;"></div>
                 <button type="submit" class="submit-auth-btn">ይግቡ (Login)</button>
             </form>
 
@@ -348,13 +338,13 @@
                     <input type="password" id="register-password" name="password" required autocomplete="new-password"
                         placeholder="Choose a password">
                 </div>
-                <div class="auth-error-msg" id="register-error-msg" style="display: none;"></div>
+                <div class="auth-error-msg" id="register-error-msg" role="alert" style="display: none;"></div>
                 <button type="submit" class="submit-auth-btn">ይመዝገቡ (Register)</button>
             </form>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js', v='1.0.3') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js', v='1.1.0') }}"></script>
 </body>
 
 </html>

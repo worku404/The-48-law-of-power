@@ -11,15 +11,22 @@ def create_app(test_config=None):
     # Initialize the Flask application
     app = Flask(__name__, instance_relative_config=True)
 
-    database_url = os.environ.get('NOEON_DB')
+    database_url = os.environ.get('NEON_DB') or os.environ.get('DATABASE_URL')
+
     secret_key = os.environ.get('SECRET_KEY')
     session_cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', '').lower() == 'true'
+
+    is_vercel = bool(os.environ.get('VERCEL'))
+    default_db_dir = '/tmp' if is_vercel else app.instance_path
+    default_db_path = os.path.join(default_db_dir, 'likes.sqlite3')
+    default_cache_dir = '/tmp/audio_cache' if is_vercel else os.path.join(app.instance_path, 'audio_cache')
+    default_cache_dir_en = '/tmp/audio_cache_en' if is_vercel else os.path.join(app.instance_path, 'audio_cache_en')
     
     # Configure default settings
     app.config.from_mapping(
-        DATABASE_PATH=os.path.join(app.instance_path, 'likes.sqlite3'),
-        AUDIO_CACHE_DIR=os.path.join(app.instance_path, 'audio_cache'),
-        AUDIO_CACHE_DIR_EN=os.path.join(app.instance_path, 'audio_cache_en'),
+        DATABASE_PATH=default_db_path,
+        AUDIO_CACHE_DIR=default_cache_dir,
+        AUDIO_CACHE_DIR_EN=default_cache_dir_en,
         CONTENT_JSON_PATH=os.path.join(app.root_path, '..', 'data', 'sections.json'),
         CONTENT_EN_JSON_PATH=os.path.join(app.root_path, '..', 'data', 'sections_en.json'),
         SECRET_KEY=secret_key or 'dev-key-placeholder-for-session-fallback',
@@ -32,10 +39,12 @@ def create_app(test_config=None):
     if test_config:
         app.config.from_mapping(test_config)
 
-    # Ensure the instance folder exists
-    os.makedirs(app.instance_path, exist_ok=True)
-    os.makedirs(app.config['AUDIO_CACHE_DIR'], exist_ok=True)
-    os.makedirs(app.config['AUDIO_CACHE_DIR_EN'], exist_ok=True)
+    # Ensure cache folders exist
+    try:
+        os.makedirs(app.config['AUDIO_CACHE_DIR'], exist_ok=True)
+        os.makedirs(app.config['AUDIO_CACHE_DIR_EN'], exist_ok=True)
+    except OSError:
+        pass
 
     # Initialize Services and attach to app context or app config
     db_service = DatabaseService(

@@ -51,7 +51,9 @@ class DatabaseService:
             conn.close()
             self._is_available = True
         except Exception as e:
+            import traceback
             print(f"Database availability check failed: {e}")
+            traceback.print_exc()
             self._is_available = False
             
         return self._is_available
@@ -60,7 +62,7 @@ class DatabaseService:
     @property
     def database_url(self):
         if self._database_url is None:
-            self._database_url = os.environ.get('NOEON_DB') or current_app.config.get('DATABASE_URL')
+            self._database_url = os.environ.get('NEON_DB') or current_app.config.get('DATABASE_URL')
         return self._database_url
 
     @property
