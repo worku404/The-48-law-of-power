@@ -342,6 +342,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Likes Action API ---
     likeBtn.addEventListener('click', async () => {
+        if (!isLoggedIn) {
+            showToast(currentLang === 'en' 
+                ? 'Please log in to like this law' 
+                : 'ሕጉን ለመውደድ እባክዎ ይግቡ (Please log in to like this law)');
+            openAuthModal();
+            return;
+        }
+
         if (likeBtn.classList.contains('liked')) {
             showToast(currentLang === 'en' ? 'You already liked this law' : 'ይህንን ሕግ ቀድመው ወድደውታል (You already liked this law)');
             return;
@@ -354,6 +362,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Content-Type': 'application/json'
                 }
             });
+            if (response.status === 401) {
+                isLoggedIn = false;
+                renderUserProgressContainer();
+                showToast(currentLang === 'en' 
+                    ? 'Please log in to like this law' 
+                    : 'ሕጉን ለመውደድ እባክዎ ይግቡ (Please log in to like this law)');
+                openAuthModal();
+                return;
+            }
             if (!response.ok) {
                 throw new Error('Failed to post like');
             }
@@ -362,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update likes counter
             likesCountEl.textContent = data.likes;
             likeBtn.classList.add('liked');
-            likeBtn.setAttribute('title', 'You have liked this law');
+            likeBtn.setAttribute('title', currentLang === 'en' ? 'You have liked this law' : 'ይህንን ሕግ ወድደውታል (You have liked this law)');
             showToast(currentLang === 'en' ? 'You liked this law!' : 'ሕጉን ወድደውታል! (You liked this law!)');
         } catch (error) {
             console.error('Error liking section:', error);
@@ -732,6 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 renderUserProgressContainer();
+                refreshCurrentLawLikes();
                 closeAuthModal();
                 showToast('በስኬት ገብተዋል! (Logged in successfully!)');
                 loginForm.reset();
@@ -772,6 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 completedLaws = new Set(); // Newly registered user has no progress
 
                 renderUserProgressContainer();
+                refreshCurrentLawLikes();
                 closeAuthModal();
                 showToast('አካውንትዎ በስኬት ተፈጥሯል! (Account created successfully!)');
                 registerForm.reset();
@@ -783,6 +802,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Refresh likes state for the currently loaded law
+    async function refreshCurrentLawLikes() {
+        try {
+            const response = await fetch(`/api/sections/${currentLawId}?lang=${currentLang}`);
+            if (response.ok) {
+                const data = await response.json();
+                likesCountEl.textContent = data.likes;
+                if (data.liked) {
+                    likeBtn.classList.add('liked');
+                    likeBtn.setAttribute('title', currentLang === 'en' ? 'You have liked this law' : 'ይህንን ሕግ ወድደውታል (You have liked this law)');
+                } else {
+                    likeBtn.classList.remove('liked');
+                    likeBtn.setAttribute('title', currentLang === 'en' ? 'Like this law' : 'ሕጉን ውደዱ (Like this law)');
+                }
+            }
+        } catch (e) {
+            console.error('Error refreshing likes:', e);
+        }
+    }
+
     // Logout request handler
     async function handleLogout() {
         try {
@@ -790,6 +829,9 @@ document.addEventListener('DOMContentLoaded', () => {
             isLoggedIn = false;
             username = "";
             completedLaws = new Set();
+
+            likeBtn.classList.remove('liked');
+            likeBtn.setAttribute('title', currentLang === 'en' ? 'Like this law' : 'ሕጉን ውደዱ (Like this law)');
 
             renderUserProgressContainer();
             showToast('ወጥተዋል! (Logged out successfully!)');

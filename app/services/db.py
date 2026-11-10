@@ -60,7 +60,7 @@ class DatabaseService:
     @property
     def database_url(self):
         if self._database_url is None:
-            self._database_url = os.environ.get('DATABASE_URL') or current_app.config.get('DATABASE_URL')
+            self._database_url = os.environ.get('NOEON_DB') or current_app.config.get('DATABASE_URL')
         return self._database_url
 
     @property
@@ -95,9 +95,25 @@ class DatabaseService:
         # Check database engine type to generate matching schema
         if self.is_postgres():
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    password VARCHAR(255) NOT NULL
+                )
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS section_likes (
                     section_id INTEGER PRIMARY KEY,
                     like_count INTEGER NOT NULL DEFAULT 0
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_likes (
+                    username VARCHAR(255) NOT NULL,
+                    section_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (username, section_id),
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
                 )
             """)
             cursor.execute("""
@@ -105,13 +121,6 @@ class DatabaseService:
                     visitor_cookie VARCHAR(255) NOT NULL,
                     section_id INTEGER NOT NULL,
                     PRIMARY KEY (visitor_cookie, section_id)
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(255) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL
                 )
             """)
             cursor.execute("""
@@ -126,9 +135,25 @@ class DatabaseService:
             """)
         else:
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS section_likes (
                     section_id INTEGER PRIMARY KEY,
                     like_count INTEGER NOT NULL DEFAULT 0
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_likes (
+                    username TEXT NOT NULL,
+                    section_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (username, section_id),
+                    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
                 )
             """)
             cursor.execute("""
@@ -136,13 +161,6 @@ class DatabaseService:
                     visitor_cookie TEXT NOT NULL,
                     section_id INTEGER NOT NULL,
                     PRIMARY KEY (visitor_cookie, section_id)
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL
                 )
             """)
             cursor.execute("""

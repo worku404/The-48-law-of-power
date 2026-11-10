@@ -26,19 +26,22 @@ def index():
 
     db_available = current_app.db_service.check_availability()
 
-    # Fetch likes metadata for active section
-    if db_available:
-        likes_count = current_app.likes_service.get_likes(law_id)
-        has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), law_id)
-    else:
-        likes_count = 0
-        has_liked = False
-
     # Check user login and progress
     username = session.get('username') if db_available else None
     completed_laws = []
     if username and db_available:
         completed_laws = current_app.user_service.get_progress(username)
+
+    # Fetch likes metadata for active section
+    if db_available and username:
+        likes_count = current_app.likes_service.get_likes(law_id)
+        has_liked = current_app.likes_service.has_liked(username, law_id)
+    elif db_available:
+        likes_count = current_app.likes_service.get_likes(law_id)
+        has_liked = False
+    else:
+        likes_count = 0
+        has_liked = False
 
     return render_template(
         'index.html',
@@ -60,9 +63,13 @@ def get_section_api(section_id):
 
     # Fetch likes metrics
     db_available = current_app.db_service.check_availability()
-    if db_available:
+    username = session.get('username') if db_available else None
+    if db_available and username:
         likes_count = current_app.likes_service.get_likes(section_id)
-        has_liked = current_app.likes_service.has_liked(getattr(g, 'visitor_id', None), section_id)
+        has_liked = current_app.likes_service.has_liked(username, section_id)
+    elif db_available:
+        likes_count = current_app.likes_service.get_likes(section_id)
+        has_liked = False
     else:
         likes_count = 0
         has_liked = False
@@ -113,11 +120,14 @@ def like_section_api(section_id):
     if not section:
         return jsonify({'error': 'Section not found'}), 404
 
-    visitor_id = getattr(g, 'visitor_id', None)
-    if not visitor_id:
-        return jsonify({'error': 'Visitor cookie not available'}), 400
+    username = session.get('username')
+    if not username:
+        return jsonify({
+            'error': 'ሕጉን ለመውደድ እባክዎ ይግቡ (Please log in to like this law.)',
+            'auth_required': True
+        }), 401
 
-    likes_count, success = current_app.likes_service.add_like(visitor_id, section_id)
+    likes_count, success = current_app.likes_service.add_like(username, section_id)
     
     return jsonify({
         'likes': likes_count,

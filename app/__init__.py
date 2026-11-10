@@ -10,6 +10,10 @@ from app.services.db import DatabaseService
 def create_app(test_config=None):
     # Initialize the Flask application
     app = Flask(__name__, instance_relative_config=True)
+
+    database_url = os.environ.get('NOEON_DB')
+    secret_key = os.environ.get('SECRET_KEY')
+    session_cookie_secure = os.environ.get('SESSION_COOKIE_SECURE', '').lower() == 'true'
     
     # Configure default settings
     app.config.from_mapping(
@@ -18,8 +22,11 @@ def create_app(test_config=None):
         AUDIO_CACHE_DIR_EN=os.path.join(app.instance_path, 'audio_cache_en'),
         CONTENT_JSON_PATH=os.path.join(app.root_path, '..', 'data', 'sections.json'),
         CONTENT_EN_JSON_PATH=os.path.join(app.root_path, '..', 'data', 'sections_en.json'),
-        SECRET_KEY='dev-key-placeholder-for-session-fallback',
-        DATABASE_URL=os.environ.get('DATABASE_URL')
+        SECRET_KEY=secret_key or 'dev-key-placeholder-for-session-fallback',
+        DATABASE_URL=database_url,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_SECURE=session_cookie_secure
     )
 
     if test_config:

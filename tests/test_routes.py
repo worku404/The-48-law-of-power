@@ -50,22 +50,44 @@ def test_get_nonexistent_section_api(client):
     response = client.get('/api/sections/99')
     assert response.status_code == 404
 
+def test_like_section_unauthenticated_fails(client):
+    # Liking without being logged in should return 401 Unauthorized
+    response = client.post('/api/sections/1/like')
+    assert response.status_code == 401
+    data = json.loads(response.data)
+    assert data.get('auth_required') is True
+
 def test_like_section_api(client):
-    # Get a visitor cookie session
-    client.get('/')
+    # Register/login user first
+    reg_data = {'username': 'likeuser', 'password': 'mypassword'}
+    reg_resp = client.post('/api/auth/register', json=reg_data)
+    assert reg_resp.status_code == 200
     
-    # Call like API
+    # Call like API while authenticated
     response = client.post('/api/sections/1/like')
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data['likes'] == 1
     assert data['liked'] is True
 
-    # Check updated GET API values
+    # Check updated GET API values while logged in
     get_response = client.get('/api/sections/1')
     get_data = json.loads(get_response.data)
     assert get_data['likes'] == 1
     assert get_data['liked'] is True
+
+    # Subsequent like from the same user should not increment count
+    dup_response = client.post('/api/sections/1/like')
+    assert dup_response.status_code == 200
+    dup_data = json.loads(dup_response.data)
+    assert dup_data['likes'] == 1
+
+    # Unauthenticated visitor reading the section sees total likes but liked=False
+    client.post('/api/auth/logout')
+    anon_response = client.get('/api/sections/1')
+    anon_data = json.loads(anon_response.data)
+    assert anon_data['likes'] == 1
+    assert anon_data['liked'] is False
 
 def test_audio_duration_calculation(client):
     response = client.get('/api/sections/1')

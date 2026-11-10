@@ -9,37 +9,42 @@ def test_initial_likes_is_zero(app):
 
 def test_add_like_success(app):
     with app.app_context():
+        app.user_service.create_user("user1", "pass1")
         service = app.likes_service
-        visitor = "visitor-uuid-123"
+        user = "user1"
         
         # Like first time
-        likes, success = service.add_like(visitor, 1)
+        likes, success = service.add_like(user, 1)
         assert success is True
         assert likes == 1
         assert service.get_likes(1) == 1
-        assert service.has_liked(visitor, 1) is True
+        assert service.has_liked(user, 1) is True
 
 def test_prevent_double_like(app):
     with app.app_context():
+        app.user_service.create_user("user1", "pass1")
         service = app.likes_service
-        visitor = "visitor-uuid-123"
+        user = "user1"
         
         # First like
-        service.add_like(visitor, 1)
-        # Second like attempt from same visitor
-        likes, success = service.add_like(visitor, 1)
+        service.add_like(user, 1)
+        # Second like attempt from same user
+        likes, success = service.add_like(user, 1)
         
         assert success is False
         assert likes == 1
         assert service.get_likes(1) == 1
 
-def test_multiple_visitors_increment(app):
+def test_multiple_users_increment(app):
     with app.app_context():
+        app.user_service.create_user("user-A", "pass")
+        app.user_service.create_user("user-B", "pass")
+        app.user_service.create_user("user-C", "pass")
         service = app.likes_service
         
-        service.add_like("visitor-A", 1)
-        service.add_like("visitor-B", 1)
-        likes, success = service.add_like("visitor-C", 1)
+        service.add_like("user-A", 1)
+        service.add_like("user-B", 1)
+        likes, success = service.add_like("user-C", 1)
         
         assert success is True
         assert likes == 3
@@ -48,12 +53,13 @@ def test_multiple_visitors_increment(app):
 def test_persistence_on_database_restart(app):
     # Retrieve DB file path
     db_path = app.config['DATABASE_PATH']
-    visitor = "persisting-visitor"
+    user = "persisting-user"
     
     # Write a like
     with app.app_context():
+        app.user_service.create_user(user, "pass")
         service = app.likes_service
-        service.add_like(visitor, 5)
+        service.add_like(user, 5)
         assert service.get_likes(5) == 1
         
     # Reinitialize a new service pointing to the same file (simulates app restart)
@@ -61,4 +67,4 @@ def test_persistence_on_database_restart(app):
     with app.app_context():
         # Read from the file
         assert new_service.get_likes(5) == 1
-        assert new_service.has_liked(visitor, 5) is True
+        assert new_service.has_liked(user, 5) is True
