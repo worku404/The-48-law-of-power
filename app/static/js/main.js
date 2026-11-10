@@ -260,9 +260,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isPlaying && !audioIsPaused && !isLoadingAudio) {
             audioBtnText.textContent = s.listen;
         }
-        document.querySelectorAll('.law-name[data-soon="true"]').forEach((el) => {
-            el.textContent = s.soon;
+
+        // Update sidebar items to matching language titles
+        document.querySelectorAll('.sidebar-link').forEach((link) => {
+            const titleEl = link.querySelector('.law-name');
+            const dotEl = link.querySelector('.law-dot');
+            if (!titleEl) return;
+
+            const titleAm = link.getAttribute('data-title-am') || '';
+            const titleEn = link.getAttribute('data-title-en') || '';
+            const rawTitle = currentLang === 'en' ? titleEn : titleAm;
+
+            if (rawTitle) {
+                titleEl.textContent = prettyTitle(rawTitle);
+                titleEl.removeAttribute('data-soon');
+                link.classList.remove('is-soon');
+                if (dotEl) {
+                    dotEl.className = 'law-dot filled';
+                    dotEl.setAttribute('title', 'Content available');
+                }
+            } else {
+                titleEl.textContent = s.soon;
+                titleEl.setAttribute('data-soon', 'true');
+                link.classList.add('is-soon');
+                if (dotEl) {
+                    dotEl.className = 'law-dot empty';
+                    dotEl.setAttribute('title', s.soon);
+                }
+            }
         });
+
         viewLawLabel.textContent = s.label(currentLawId);
 
         renderUserProgressContainer();

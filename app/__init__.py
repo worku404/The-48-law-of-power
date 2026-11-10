@@ -56,7 +56,10 @@ def create_app(test_config=None):
         data_path_en=app.config.get('CONTENT_EN_JSON_PATH')
     )
     likes_service = LikesService(db_service=db_service)
-    tts_service = TTSService(cache_dir=app.config['AUDIO_CACHE_DIR'])
+    tts_service = TTSService(
+        cache_dir=app.config['AUDIO_CACHE_DIR'],
+        cache_dir_en=app.config.get('AUDIO_CACHE_DIR_EN')
+    )
     user_service = UserService(db_service=db_service)
     
     # Store services on the app object for easy retrieval in blueprints/routes

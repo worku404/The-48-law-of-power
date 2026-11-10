@@ -1,28 +1,7 @@
 import os
 import pytest
-from unittest.mock import MagicMock, patch
-from app.services.tts import TTSService, EmptyContentError, MissingAPIKeyError, GeminiAPIError
-
-# --- Mock structures mimicking google-genai Response ---
-class MockInlineData:
-    def __init__(self, data):
-        self.data = data
-
-class MockPart:
-    def __init__(self, data):
-        self.inline_data = MockInlineData(data)
-
-class MockContent:
-    def __init__(self, data):
-        self.parts = [MockPart(data)]
-
-class MockCandidate:
-    def __init__(self, data):
-        self.content = MockContent(data)
-
-class MockResponse:
-    def __init__(self, data):
-        self.candidates = [MockCandidate(data)]
+import hashlib
+from app.services.tts import TTSService, EmptyContentError
 
 def test_tts_rejects_empty_content(app):
     with app.app_context():
@@ -34,86 +13,52 @@ def test_tts_rejects_empty_content(app):
         with pytest.raises(EmptyContentError):
             service.get_audio_path("   ")
 
-def test_tts_raises_missing_api_key(app):
-    with app.app_context():
-        # Instantiate a custom service with no keys
-        service = TTSService(cache_dir=app.config['AUDIO_CACHE_DIR'], api_key=None)
-        
-        # Clear environment variables
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(MissingAPIKeyError):
-                service.get_audio_path("እዚህ Amharic content")
-
-@patch('app.services.tts.genai.Client')
-def test_tts_cache_miss_and_hit(mock_client_class, app):
-    # Setup mock behavior
-    mock_client = MagicMock()
-    mock_client_class.return_value = mock_client
-    
-    expected_bytes = b"mocked-binary-audio-wav-data"
-    mock_client.models.generate_content.return_value = MockResponse(expected_bytes)
-
+def test_tts_serves_pregenerated_file_when_cached(app):
     with app.app_context():
         service = app.tts_service
-        # Pass a mock API key to bypass key check
-        service._api_key = "mock-key"
-        
         text = "ይህ የሙከራ የአማርኛ ጽሑፍ ነው።"
+        text_hash = hashlib.sha256(text.strip().encode('utf-8')).hexdigest()
         
-        # 1. First Call: Cache Miss (API is called)
-        path1 = service.get_audio_path(text)
-        assert os.path.exists(path1)
-        
-        if service._get_ffmpeg_path():
-            # If ffmpeg is present, it will be a real MP3 file
-            assert os.path.getsize(path1) > 0
-        else:
-            # Otherwise it's a WAV container
-            import wave
-            with wave.open(path1, 'rb') as f:
-                assert f.getnchannels() == 1
-                assert f.getsampwidth() == 2
-                assert f.getframerate() == 24000
-                assert f.readframes(f.getnframes()) == expected_bytes
-        
-        assert mock_client.models.generate_content.call_count == 1
-        
-        # 2. Second Call: Cache Hit (API is NOT called, file retrieved from local folder)
-        path2 = service.get_audio_path(text)
-        assert path1 == path2
-        assert mock_client.models.generate_content.call_count == 1
+        # Place pre-generated audio file in the cache directory
+        cache_file = os.path.join(service.cache_dir, f"{text_hash}.mp3")
+        with open(cache_file, 'wb') as f:
+            f.write(b"mocked-pregenerated-mp3-bytes")
+            
+        result_path = service.get_audio_path(text)
+        assert result_path == cache_file
+        assert os.path.exists(result_path)
 
-@patch('app.services.tts.genai.Client')
-def test_audio_endpoints(mock_client_class, client):
-    # Setup mock behavior for endpoints integration
-    mock_client = MagicMock()
-    mock_client_class.return_value = mock_client
-    
-    expected_bytes = b"endpoint-mocked-wav-data"
-    mock_client.models.generate_content.return_value = MockResponse(expected_bytes)
-    
-    # Inject fake API key to routes context
-    client.application.tts_service._api_key = "mock-key"
+def test_tts_returns_none_when_audio_not_pregenerated(app):
+    with app.app_context():
+        service = app.tts_service
+        text = "ይህ ገና ያልተቀረጸ ጽሑፍ ነው።"
+        
+        # When no pre-generated file exists, return None (no on-demand server generation)
+        result_path = service.get_audio_path(text)
+        assert result_path is None
 
-    # Test GET audio endpoint for seeded Law 1
+def test_audio_endpoint_with_pregenerated_file(client):
+    cache_dir = client.application.config['AUDIO_CACHE_DIR']
+    body_text = "የሙከራ ይዘት እዚህ ይገኛል::"  # Seeded Law 1 body in mock_sections_file
+    text_hash = hashlib.sha256(body_text.strip().encode('utf-8')).hexdigest()
+    file_path = os.path.join(cache_dir, f"{text_hash}.mp3")
+    
+    with open(file_path, 'wb') as f:
+        f.write(b"mocked-amharic-audio-bytes")
+
+    # GET audio endpoint for Law 1 should return 200 with the pre-generated file
     response = client.get('/api/sections/1/audio')
     assert response.status_code == 200
-    assert response.content_type in ('audio/wav', 'audio/mpeg')
-    
-    if client.application.tts_service._get_ffmpeg_path():
-        assert len(response.data) > 0
-    else:
-        import wave
-        import io
-        with wave.open(io.BytesIO(response.data), 'rb') as f:
-            assert f.getnchannels() == 1
-            assert f.getsampwidth() == 2
-            assert f.getframerate() == 24000
-            assert f.readframes(f.getnframes()) == expected_bytes
-    response.close()
+    assert response.data == b"mocked-amharic-audio-bytes"
 
-    # Test GET audio endpoint for untranslated Law 3 (empty body)
-    response_empty = client.get('/api/sections/3/audio')
-    assert response_empty.status_code == 400
-    assert b"Cannot generate audio for empty content" in response_empty.data
-    response_empty.close()
+def test_audio_endpoint_not_ready_returns_503(client):
+    # For Law 2 whose audio has not been pre-generated, should return 503
+    response = client.get('/api/sections/2/audio')
+    assert response.status_code == 503
+    data = response.get_json()
+    assert data.get('details') == 'AUDIO_NOT_READY'
+
+def test_audio_endpoint_empty_content_returns_400(client):
+    # Law 3 has empty body
+    response = client.get('/api/sections/3/audio')
+    assert response.status_code == 400

@@ -92,8 +92,10 @@
                     {% for sec in sections %}
                     <li>
                         <a href="/?law={{ sec.id }}"
-                            class="sidebar-link {% if sec.id == active_section.id %}active{% endif %} {% if not sec.title %}is-soon{% endif %}"
+                            class="sidebar-link {% if sec.id == active_section.id %}active{% endif %} {% if not sec.title and not sec.title_en %}is-soon{% endif %}"
                             data-id="{{ sec.id }}" id="sidebar-law-{{ sec.id }}"
+                            data-title-am="{{ sec.title }}"
+                            data-title-en="{{ sec.title_en }}"
                             {% if sec.id == active_section.id %}aria-current="page"{% endif %}>
                             <span class="law-number">{{ sec.id }}</span>
                             {% if sec.title %}

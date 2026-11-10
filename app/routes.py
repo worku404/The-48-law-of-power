@@ -1,15 +1,28 @@
 from flask import Blueprint, render_template, current_app, request, jsonify, g, send_file, session
-from app.services.tts import EmptyContentError, MissingAPIKeyError, GeminiAPIError
 import os
-import wave
 import hashlib
 
 bp = Blueprint('main', __name__)
 
 @bp.route('/')
 def index():
-    # Load all sections
-    sections = current_app.content_service.get_all_sections()
+    # Load all sections in both Amharic and English for bilingual sidebar rendering
+    sections_am = current_app.content_service.get_all_sections('am')
+    sections_en = current_app.content_service.get_all_sections('en')
+    en_by_id = {s['id']: s for s in sections_en}
+
+    sections = []
+    for sec_am in sections_am:
+        sec_id = sec_am['id']
+        sec_en = en_by_id.get(sec_id, {})
+        sections.append({
+            'id': sec_id,
+            'label': sec_am.get('label', f'Law {sec_id}'),
+            'label_en': sec_en.get('label', f'Law {sec_id}'),
+            'title': sec_am.get('title', ''),
+            'title_en': sec_en.get('title', ''),
+            'body': sec_am.get('body', '')
+        })
     
     # Identify requested law, default to Law 1
     law_id_str = request.args.get('law', '1')
@@ -143,34 +156,22 @@ def get_section_audio_api(section_id):
 
     body_text = section.get('body', '').strip()
     if not body_text:
-        return jsonify({'error': 'Cannot generate audio for empty content'}), 400
+        return jsonify({'error': 'Cannot play audio for empty content'}), 400
 
-    # ── English: serve pre-generated Azure TTS file from audio_cache_en ──────
-    if lang == 'en':
-        text_hash = hashlib.sha256(body_text.encode('utf-8')).hexdigest()
-        cache_dir = current_app.config['AUDIO_CACHE_DIR_EN']
-        audio_path = os.path.join(cache_dir, f"{text_hash}.mp3")
-        if os.path.exists(audio_path):
-            return send_file(audio_path, mimetype='audio/mpeg', as_attachment=False)
-        return jsonify({
-            'error': 'English audio for this law has not been generated yet.',
-            'details': 'EN_AUDIO_NOT_READY'
-        }), 503
-
-    # ── Amharic: on-demand Gemini TTS (existing behaviour) ───────────────────
-    try:
-        audio_path = current_app.tts_service.get_audio_path(body_text, lang=lang)
+    audio_path = current_app.tts_service.get_audio_path(body_text, lang=lang)
+    if audio_path and os.path.exists(audio_path):
         mimetype = 'audio/mpeg' if audio_path.endswith('.mp3') else 'audio/wav'
         return send_file(audio_path, mimetype=mimetype, as_attachment=False)
 
-    except EmptyContentError as e:
-        return jsonify({'error': str(e)}), 400
-    except MissingAPIKeyError as e:
-        return jsonify({'error': str(e), 'details': 'TTS_KEY_MISSING'}), 503
-    except GeminiAPIError as e:
-        return jsonify({'error': str(e)}), 502
-    except Exception as e:
-        return jsonify({'error': f"An unexpected audio retrieval error occurred: {str(e)}"}), 500
+    error_msg = (
+        'English audio for this law has not been generated yet.'
+        if lang == 'en'
+        else 'የዚህ ሕግ ድምጽ ገና አልተዘጋጀም። በቅርቡ ይደርሳል! (Audio for this law has not been generated yet.)'
+    )
+    return jsonify({
+        'error': error_msg,
+        'details': 'AUDIO_NOT_READY'
+    }), 503
 
 # --- Authentication APIs ---
 
