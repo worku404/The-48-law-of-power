@@ -151,9 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function isHeadingText(text) {
         if (TERMINAL_RE.test(text) || /[,፣]$/.test(text)) return false;
         const words = text.split(/\s+/).length;
-        if (ETHIOPIC_RE.test(text)) return text.length <= 40 && words <= 5;
+        if (ETHIOPIC_RE.test(text)) {
+            if (/^(ብያኔ|ሕጉ\s*ሲተገበር|ሕጉ\s*ሲጣስ|ሕጉ\s*ሲገለበጥ|ሕጉን\s*መረዳት|የስልጣን\s*ቁልፎች|ምሳሌ|ስልጣን|የሕጉ\s*መገለበጥ)/.test(text)) return true;
+            return text.length <= 60 && words <= 8;
+        }
+        if (/^(JUDGMENT|TRANSGRESSION.*|OBSERVANCE.*|KEYS TO POWER|REVERSAL|INTERPRETATION|AUTHORITY|IMAGE|CRITIQUE|PART\s+[IVX]+[:\s].*)$/i.test(text)) {
+            return true;
+        }
         const hasLetters = /[A-Za-z]/.test(text);
-        return hasLetters && text.length <= 48 && words <= 7 && text === text.toUpperCase();
+        return hasLetters && text.length <= 60 && words <= 8 && text === text.toUpperCase();
     }
 
     // Turns the plain body text into readable structure:
