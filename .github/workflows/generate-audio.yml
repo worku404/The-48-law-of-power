@@ -1,0 +1,83 @@
+name: Generate Audio Cache via Gemini
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Language to generate'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - am
+          - en
+      limit:
+        description: 'Max laws to generate per language (e.g. 2 to avoid rate limits)'
+        required: true
+        default: '2'
+      start_law:
+        description: 'Starting Law ID (1-48)'
+        required: false
+        default: '1'
+      end_law:
+        description: 'Ending Law ID (1-48)'
+        required: false
+        default: '48'
+
+  # Optional automated schedule: runs every 4 hours to generate audio in small batches
+  schedule:
+    - cron: '0 */4 * * *'
+
+# Grant write permissions to commit and push generated audio files
+permissions:
+  contents: write
+
+jobs:
+  generate-audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install google-genai
+
+      - name: Run Audio Generation Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python generate_audio_gemini.py \
+            --lang "${{ github.event.inputs.language || 'both' }}" \
+            --limit "${{ github.event.inputs.limit || '2' }}" \
+            --start "${{ github.event.inputs.start_law || '1' }}" \
+            --end "${{ github.event.inputs.end_law || '48' }}"
+
+      - name: Commit and Push New Audio Files
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add instance/audio_cache/ instance/audio_cache_en/
+          if git diff --staged --quiet; then
+            echo "No new audio files to commit."
+          else
+            git commit -m "Auto-generate audio cache via Gemini [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
